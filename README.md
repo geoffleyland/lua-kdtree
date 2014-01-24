@@ -75,4 +75,6 @@ Lua >= 5.1 or LuaJIT >= 2.0.0, ljsyscall and lua-mapfile for binary file io.
 
 ## 6. Alternatives
 
-+ SQLite and PostGres have spatial indexing capabilities
++ SQLite and PostGres have spatial indexing capabilities.
+  This library running with LuaJIT seems to be about twice as fast at
+  querying as SQLite (on a cheap, nasty, nonrepresentative benchmark)
