@@ -439,10 +439,10 @@ end
 local query
 
 local function query_node(tree, node, min, max, yield)
-  if min[node.axis] < node.split then
+  if min[node.axis] <= node.split then
     query(tree, node.low,  min, max, yield)
   end
-  if max[node.axis] > node.split then
+  if max[node.axis] >= node.split then
     query(tree, node.high, min, max, yield)
   end
   query(tree, node.mid, min, max, yield)
