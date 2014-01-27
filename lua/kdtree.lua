@@ -605,7 +605,7 @@ function kdtree.read_text(
   local i = io.open(filename, "r")
 
   local objects, leaf_size, wrapped_bounds
-  if type(x) == "number" then
+  if not x or type(x) == "number" then
     leaf_size = x
     wrapped_bounds = query_index_bounds
   else
@@ -678,7 +678,7 @@ if ffi then
       x,        -- ?integer|table: as for build.
       y)        -- ?integer: as for build.
       local objects, leaf_size, wrapped_bounds
-      if type(x) == "number" then
+      if not x or type(x) == "number" then
         leaf_size = x
         wrapped_bounds = query_index_bounds
       else
