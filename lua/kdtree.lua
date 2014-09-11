@@ -53,22 +53,22 @@ if ffi then
     local leaf_size = tree.leaf_size
 
     local event_estimate = dims * 2 * item_count
-    tree.event_ptr = cdefs.malloc("struct kdtree_event", event_estimate)
+    tree.event_ptr = cdefs.malloc(event_estimate, "struct kdtree_event")
     tree.event_count = 0
 
-    tree.items = cdefs.gcmalloc("int32_t", item_count)
+    tree.items = cdefs.gcmalloc(item_count, "int32_t")
     tree.item_count = 0
 
     -- Hopefully leaf_estimate and node_estimate are large enough, because
     -- I haven't implemented any way for them to grow.  I do, now, have
     -- a check on their size (in new_leaf and new_node below).
     local leaf_estimate = math_ceil(item_count / leaf_size) * 4
-    tree.leaves = cdefs.gcmalloc("struct kdtree_leaf", leaf_estimate)
+    tree.leaves = cdefs.gcmalloc(leaf_estimate, "struct kdtree_leaf")
     tree.leaf_count = 0
     tree.leaf_limit = leaf_estimate
 
     local node_estimate = math_ceil(item_count / leaf_size) * 4
-    tree.nodes = cdefs.gcmalloc("struct kdtree_node", node_estimate)
+    tree.nodes = cdefs.gcmalloc(node_estimate, "struct kdtree_node")
     tree.node_count = 0
     tree.node_limit = node_estimate
   end
@@ -625,9 +625,9 @@ function kdtree.read_text(
     tree.node_count, tree.leaf_count, tree.item_count = 0, 0, 0
     tree.node_limit, tree.leaf_limit = node_count, leaf_count
 
-    tree.nodes = cdefs.gcmalloc("struct kdtree_node", node_count)
-    tree.leaves = cdefs.gcmalloc("struct kdtree_leaf", leaf_count)
-    tree.items = cdefs.gcmalloc("int32_t", item_count)
+    tree.nodes = cdefs.gcmalloc(node_count, "struct kdtree_node")
+    tree.leaves = cdefs.gcmalloc(leaf_count, "struct kdtree_leaf")
+    tree.items = cdefs.gcmalloc(item_count, "int32_t")
   end
 
   tree.root = read_text(tree, i)

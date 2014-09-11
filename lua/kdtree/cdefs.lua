@@ -25,13 +25,19 @@ struct kdtree_leaf
 
 ------------------------------------------------------------------------------
 
-local function malloc(type, size)
-  return ffi.cast(type.."*", ffi.C.malloc(size * ffi.sizeof(type)))
+local function malloc(size, type)
+  if type then size = size * ffi.sizeof(type) end
+  local addr = ffi.C.malloc(size)
+  if type then
+    return ffi.cast(type.."*", addr)
+  else
+    return addr
+  end
 end
 
 
-local function gcmalloc(type, size)
-  return ffi.gc(malloc(type, size), ffi.C.free)
+local function gcmalloc(size, type)
+  return ffi.gc(malloc(size, type), ffi.C.free)
 end
 
 
