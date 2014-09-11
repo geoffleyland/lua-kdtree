@@ -37,7 +37,11 @@ if ffi then
   ok, mmapfile = pcall(require, "mmapfile")
   if not ok then mmapfile = nil end
 
-  malloc, gcmalloc, free = cdefs.malloc, cdefs.gcmalloc, cdefs.free
+  if mmapfile and mmapfile.malloc then
+    malloc, gcmalloc, free = mmapfile.malloc, mmapfile.gcmalloc, mmapfile.free
+  else
+    malloc, gcmalloc, free = cdefs.malloc, cdefs.gcmalloc, cdefs.free
+  end
 end
 
 
