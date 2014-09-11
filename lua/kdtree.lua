@@ -27,9 +27,17 @@
 
 local ok, ffi = pcall(require, "ffi")
 if not ok then ffi = nil end
-local cdefs
+local syscall, mmapfile
+local malloc, gcmalloc, free
 if ffi then
-  cdefs = require"kdtree.cdefs"
+  local cdefs = require"kdtree.cdefs"
+  local ok
+  ok, syscall = pcall(require, "syscall")
+  if not ok then syscall = nil end
+  ok, mmapfile = pcall(require, "mmapfile")
+  if not ok then mmapfile = nil end
+
+  malloc, gcmalloc, free = cdefs.malloc, cdefs.gcmalloc, cdefs.free
 end
 
 
@@ -53,28 +61,28 @@ if ffi then
     local leaf_size = tree.leaf_size
 
     local event_estimate = dims * 2 * item_count
-    tree.event_ptr = cdefs.malloc(event_estimate, "struct kdtree_event")
+    tree.event_ptr = malloc(event_estimate, "struct kdtree_event")
     tree.event_count = 0
 
-    tree.items = cdefs.gcmalloc(item_count, "int32_t")
+    tree.items = gcmalloc(item_count, "int32_t")
     tree.item_count = 0
 
     -- Hopefully leaf_estimate and node_estimate are large enough, because
     -- I haven't implemented any way for them to grow.  I do, now, have
     -- a check on their size (in new_leaf and new_node below).
     local leaf_estimate = math_ceil(item_count / leaf_size) * 4
-    tree.leaves = cdefs.gcmalloc(leaf_estimate, "struct kdtree_leaf")
+    tree.leaves = gcmalloc(leaf_estimate, "struct kdtree_leaf")
     tree.leaf_count = 0
     tree.leaf_limit = leaf_estimate
 
     local node_estimate = math_ceil(item_count / leaf_size) * 4
-    tree.nodes = cdefs.gcmalloc(node_estimate, "struct kdtree_node")
+    tree.nodes = gcmalloc(node_estimate, "struct kdtree_node")
     tree.node_count = 0
     tree.node_limit = node_estimate
   end
 
   release_events = function(tree)
-    cdefs.free(tree.event_ptr)
+    free(tree.event_ptr)
     tree.event_ptr, tree.event_count = nil, nil
   end
 
@@ -625,9 +633,9 @@ function kdtree.read_text(
     tree.node_count, tree.leaf_count, tree.item_count = 0, 0, 0
     tree.node_limit, tree.leaf_limit = node_count, leaf_count
 
-    tree.nodes = cdefs.gcmalloc(node_count, "struct kdtree_node")
-    tree.leaves = cdefs.gcmalloc(leaf_count, "struct kdtree_leaf")
-    tree.items = cdefs.gcmalloc(item_count, "int32_t")
+    tree.nodes = gcmalloc(node_count, "struct kdtree_node")
+    tree.leaves = gcmalloc(leaf_count, "struct kdtree_leaf")
+    tree.items = gcmalloc(item_count, "int32_t")
   end
 
   tree.root = read_text(tree, i)
@@ -640,67 +648,58 @@ end
 
 ------------------------------------------------------------------------------
 
-if ffi then
-  local ok, syscall, mmapfile
-  ok, syscall = pcall(require, "syscall")
-  if not ok then syscall = nil end
-  ok, mmapfile = pcall(require, "mmapfile")
-  if not ok then mmapfile = nil end
-  if syscall and mmapfile then
+if syscall and mmapfile then
 
-
-    --- Write a kdtree to a set of binary files.
-    --  The kdtree writes the *indexes* of the objects to the files.  It's up
-    --  to you to recover the objects when you read the kdtree.
-    function kdtree:write_binary(
-      dirname)  -- string: the name of the directory to write the files to.
+  --- Write a kdtree to a set of binary files.
+  --  The kdtree writes the *indexes* of the objects to the files.  It's up
+  --  to you to recover the objects when you read the kdtree.
+  function kdtree:write_binary(
+    dirname)    -- string: the name of the directory to write the files to.
                 -- (write will create the directory)
-      syscall.mkdir(dirname, "RWXU, RGRP, XGRP, ROTH, XOTH")
-      mmapfile.gccreate(dirname.."/nodes",
-        self.node_count, "struct kdtree_node", self.nodes)
-      mmapfile.gccreate(dirname.."/leaves",
-        self.leaf_count, "struct kdtree_leaf", self.leaves)
-      mmapfile.gccreate(dirname.."/items",
-        self.item_count, "int32_t", self.items)
+    syscall.mkdir(dirname, "RWXU, RGRP, XGRP, ROTH, XOTH")
+    mmapfile.gccreate(dirname.."/nodes",
+      self.node_count, "struct kdtree_node", self.nodes)
+    mmapfile.gccreate(dirname.."/leaves",
+      self.leaf_count, "struct kdtree_leaf", self.leaves)
+    mmapfile.gccreate(dirname.."/items",
+      self.item_count, "int32_t", self.items)
+  end
+
+
+  --- Read a kdtree from a set of binary files.
+  --  This reads the *structure* of the tree.
+  --  It's up to you to pass in the objects that correspond to the indexes
+  --  in the tree if you wish to.
+  --  @treturn table: the kdtree
+  --  @see build
+  function kdtree.read_binary(
+    dirname,    -- string: the name of the directory to read from.
+    bounds,     -- function: as for build.
+    dims,       -- ?integer: as for build.
+    x,          -- ?integer|table: as for build.
+    y)          -- ?integer: as for build.
+    local objects, leaf_size, wrapped_bounds
+    if not x or type(x) == "number" then
+      leaf_size = x
+      wrapped_bounds = query_index_bounds
+    else
+      objects, leaf_size = x, y
+      wrapped_bounds = query_object_bounds
     end
 
+    local tree = init(bounds, dims, leaf_size)
 
-    --- Read a kdtree from a set of binary files.
-    --  This reads the *structure* of the tree.
-    --  It's up to you to pass in the objects that correspond to the indexes
-    --  in the tree if you wish to.
-    --  @treturn table: the kdtree
-    --  @see build
-    function kdtree.read_binary(
-      dirname,  -- string: the name of the directory to read from.
-      bounds,   -- function: as for build.
-      dims,     -- ?integer: as for build.
-      x,        -- ?integer|table: as for build.
-      y)        -- ?integer: as for build.
-      local objects, leaf_size, wrapped_bounds
-      if not x or type(x) == "number" then
-        leaf_size = x
-        wrapped_bounds = query_index_bounds
-      else
-        objects, leaf_size = x, y
-        wrapped_bounds = query_object_bounds
-      end
+    tree.nodes, tree.node_count =
+      mmapfile.gcopen(dirname.."/nodes", "struct kdtree_node")
+    tree.leaves, tree.leaf_count =
+      mmapfile.gcopen(dirname.."/leaves", "struct kdtree_leaf")
+    tree.items, tree.item_count =
+      mmapfile.gcopen(dirname.."/items", "int32_t")
 
-      local tree = init(bounds, dims, leaf_size)
-
-      tree.nodes, tree.node_count =
-        mmapfile.gcopen(dirname.."/nodes", "struct kdtree_node")
-      tree.leaves, tree.leaf_count =
-        mmapfile.gcopen(dirname.."/leaves", "struct kdtree_leaf")
-      tree.items, tree.item_count =
-        mmapfile.gcopen(dirname.."/items", "int32_t")
-
-      tree.root = tree.node_count - 1
-      tree.objects = objects
-      tree.bounds = wrapped_bounds
-      return tree
-    end
-
+    tree.root = tree.node_count - 1
+    tree.objects = objects
+    tree.bounds = wrapped_bounds
+    return tree
   end
 end
 
