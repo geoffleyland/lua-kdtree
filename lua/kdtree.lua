@@ -499,10 +499,11 @@ end
 --      end
 function kdtree:query(
   min,          -- table: minimum coordinates of the query box.
-  max)          -- ?table: maximum coordinates of the query box (or nil if
+  max,          -- ?table: maximum coordinates of the query box (or nil if
                 -- you want to query a point).
+  yield)        -- ?function: the function to call for each object.
   max = max or min
-  local yield = self.objects and yield_object or yield_index
+  yield = yield or (self.objects and yield_object or yield_index)
   local root = self.root
   return coroutine.wrap(function() query(self, root, min, max, yield) end)
 end
