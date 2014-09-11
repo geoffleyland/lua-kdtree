@@ -263,8 +263,8 @@ end
 local function new_axis_set(n)
   a = {}
   for i = 1, n do
-      a[i] = {}
-    end
+    a[i] = {}
+  end
   return a
 end
 
