@@ -260,6 +260,15 @@ local function split_cost(lcount, mcount, hcount)
 end
 
 
+local function new_axis_set(n)
+  a = {}
+  for i = 1, n do
+      a[i] = {}
+    end
+  return a
+end
+
+
 local function split(tree, axes, item_count)
   if item_count < tree.leaf_size then
     return build_leaf(tree, axes[1], item_count)
@@ -294,10 +303,8 @@ local function split(tree, axes, item_count)
     return build_leaf(tree, axes[1], item_count)
   end
 
-  local temp_axes = {}
-  for ai in ipairs(axes) do
-    temp_axes[ai] = {}
-  end
+  local temp_axes = axes.child_axes or new_axis_set(#axes)
+  temp_axes.child_axes = temp_axes.child_axes or new_axis_set(#axes)
 
   for ai, axis in ipairs(axes) do
     local count = 1
@@ -309,6 +316,7 @@ local function split(tree, axes, item_count)
         count = count + 1
       end
     end
+    temp_axes[ai][count] = nil
   end
   local low_split = split(tree, temp_axes, best_lcount)
 
