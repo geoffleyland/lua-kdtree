@@ -709,7 +709,12 @@ if syscall and mmapfile then
     tree.items, tree.item_count =
       mmapfile.gcopen(dirname.."/items", "int32_t")
 
+    -- astonishingly, this works when the tree has so few items that there's no
+    -- nodes, only one leaf.  In this case, the root becomes 0-1 = -1, which
+    -- is the first (and only) leaf.
+    -- I feel dirty leaving this here, but it's correct.
     tree.root = tree.node_count - 1
+
     tree.objects = objects
     tree.bounds = wrapped_bounds
     return tree
