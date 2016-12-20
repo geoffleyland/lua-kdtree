@@ -21,19 +21,19 @@
 --  The kdtree can be written to a file.  This can be a text file, or, if
 --  you're using [LuaJIT](http://luajit.org),
 --  and have [ljsycall](https://github.com/justincormack/ljsyscall)
---  and [lua-mmapfile](https://github.com/geoffleyland/lua-mmapfile),
+--  and luafilesystem,
 --  a binary file.
 
 
 local ok, ffi = pcall(require, "ffi")
 if not ok then ffi = nil end
-local syscall, mmapfile
+local lfs, mmapfile
 local malloc, gcmalloc, free
 if ffi then
   local cdefs = require"kdtree.cdefs"
   local ok
-  ok, syscall = pcall(require, "syscall")
-  if not ok then syscall = nil end
+  ok, lfs = pcall(require, "lfs")
+  if not ok then lfs = nil end
   ok, mmapfile = pcall(require, "mmapfile")
   if not ok then mmapfile = nil end
 
@@ -124,7 +124,7 @@ end
 
 local new_event
 
-if ffi then 
+if ffi then
   new_event = function(tree, x, type, item)
     local event = tree.event_ptr + tree.event_count
     tree.event_count = tree.event_count + 1
@@ -661,7 +661,7 @@ end
 
 ------------------------------------------------------------------------------
 
-if syscall and mmapfile then
+if lfs and mmapfile then
 
   --- Write a kdtree to a set of binary files.
   --  The kdtree writes the *indexes* of the objects to the files.  It's up
@@ -669,7 +669,7 @@ if syscall and mmapfile then
   function kdtree:write_binary(
     dirname)    -- string: the name of the directory to write the files to.
                 -- (write will create the directory)
-    syscall.mkdir(dirname, "RWXU, RGRP, XGRP, ROTH, XOTH")
+    lfs.mkdir(dirname)
     mmapfile.gccreate(dirname.."/nodes",
       self.node_count, "struct kdtree_node", self.nodes)
     mmapfile.gccreate(dirname.."/leaves",
