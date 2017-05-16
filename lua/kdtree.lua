@@ -16,7 +16,7 @@
 --  spatial querying makes less and less sense though.
 --
 --  The objects in the kdtree can be boxes as well as points.  I don't know
---  why, but many of the implementations I've can only contain points.
+--  why, but many of the implementations I've seen can only contain points.
 --
 --  The kdtree can be written to a file.  This can be a text file, or, if
 --  you're using [LuaJIT](http://luajit.org),
@@ -31,7 +31,6 @@ local lfs, mmapfile
 local malloc, gcmalloc, free
 if ffi then
   local cdefs = require"kdtree.cdefs"
-  local ok
   ok, lfs = pcall(require, "lfs")
   if not ok then lfs = nil end
   ok, mmapfile = pcall(require, "mmapfile")
@@ -134,7 +133,7 @@ if ffi then
     return event
   end
 else
-  new_event = function(tree, x, type, item)
+  new_event = function(_, x, type, item)
     return { x=x, type=type, item=item }
   end
 end
@@ -157,14 +156,14 @@ end
 
 local function add_items(tree, lower, upper)
   local axes = {}
-  for a = 1, tree.dims do
+  for ai = 1, tree.dims do
     local j = 0
     local axis = {}
     for i = lower, upper do
-      j = add_item(tree, i, a, axis, j)
+      j = add_item(tree, i, ai, axis, j)
     end
     table.sort(axis, function(a, b) return a.x < b.x end)
-    axes[a] = axis
+    axes[ai] = axis
   end
 
   return axes
@@ -197,13 +196,13 @@ if ffi then
 else
   new_leaf = function() return {} end
 
-  add_to_leaf = function(tree, leaf, index, item)
+  add_to_leaf = function(_, leaf, index, item)
     leaf[index] = item
   end
 end
 
 
-function build_leaf(tree, axis, item_count)
+local function build_leaf(tree, axis, item_count)
   local leaf, ret = new_leaf(tree, item_count)
 
   local i = 1
@@ -224,7 +223,7 @@ local new_node
 
 if ffi then
 
-  new_node = function(tree, axis, split, low, high, mid)
+  new_node = function(tree)
     local nc = tree.node_count
     local node = tree.nodes + nc
     tree.node_count = nc + 1
@@ -261,7 +260,7 @@ end
 
 
 local function new_axis_set(n)
-  a = {}
+  local a = {}
   for i = 1, n do
     a[i] = {}
   end
@@ -421,7 +420,7 @@ local function intersect_item(tree, min1, max1, min2, max2)
 end
 
 
-local get_node, query_index
+local get_node, query_leaf
 
 if ffi then
 
@@ -441,7 +440,7 @@ if ffi then
 
 else
 
-  get_node = function(tree, object)
+  get_node = function(_, object)
     return object.axis and object
   end
 
@@ -479,7 +478,7 @@ query = function(tree, object, min, max, yield)
 end
 
 
-local function yield_index(tree, index)
+local function yield_index(_, index)
   coroutine.yield(index)
 end
 
@@ -547,7 +546,7 @@ else
     o:write(("%d\t%d\t%d\n"):format(count(tree, tree.root)))
   end
 
-  write_text_leaf = function(tree, o, leaf)
+  write_text_leaf = function(_, o, leaf)
     o:write(("L\t%d\n"):format(#leaf))
     for _, index in ipairs(leaf) do
       o:write(("%d\n"):format(index))
@@ -591,13 +590,13 @@ end
 local function read_text(tree, i)
   local l = i:read("*l")
   if l:match("^N") then
-    local axis, split = l:match("N%s+(%d+)%s+(%S+)")
+    local axis, split_point = l:match("N%s+(%d+)%s+(%S+)")
     axis = assert(tonumber(axis), "Axis is not a number")
-    split = assert(tonumber(split), "Split coordinate is not a number")
+    split_point = assert(tonumber(split_point), "Split coordinate is not a number")
     local low = read_text(tree, i)
     local high = read_text(tree, i)
     local mid = read_text(tree, i)
-    return build_node(tree, axis, split, low, high, mid)
+    return build_node(tree, axis, split_point, low, high, mid)
   elseif l:match("^L") then
     local c = l:match("L%s+(%d+)")
     c = assert(tonumber(c), "Item count is not a number")
